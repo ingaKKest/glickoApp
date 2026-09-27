@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Studying · Glicko Study{% endblock %}
+{% block content %}
+
+<div class="center-panel">
+  <div class="session-progress">
+    <div class="progress-track">
+      <div id="progress-fill" class="progress-fill" style="width: {{ (q.index / q.total * 100) | round(1) }}%;"></div>
+    </div>
+    <div class="progress-label"><span id="q-index">{{ q.index + 1 }}</span> of <span id="q-total">{{ q.total }}</span></div>
+  </div>
+
+  <div class="question-card">
+    <div class="topic-badge" id="topic-badge">{{ q.topic_name }}</div>
+    <div class="question-body" id="question-text">{{ q.text }}</div>
+
+    <div id="answer-block" class="answer-block hidden">
+      <div class="answer-label">Answer</div>
+      <div id="answer-text" class="answer-text">{{ q.answer or "No reference answer saved for this question." }}</div>
+    </div>
+
+    <button id="reveal-btn" class="btn btn-secondary">Show answer</button>
+
+    <div id="grade-buttons" class="grade-buttons hidden">
+      <p class="grade-prompt">How did you do?</p>
+      <div class="grade-row">
+        <button class="btn btn-grade grade-correct" data-score="1">✓ Correct</button>
+        <button class="btn btn-grade grade-minor" data-score="0.7">≈ Minor error</button>
+        <button class="btn btn-grade grade-wrong" data-score="0">✕ Incorrect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+{% endblock %}

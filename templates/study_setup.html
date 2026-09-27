@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Study · Glicko Study{% endblock %}
+{% block content %}
+
+<div class="center-panel">
+  <h1>Start a study session</h1>
+  <p class="muted">Topics and questions are picked automatically — weaker topics show up more often, but nothing is ever off-limits.</p>
+
+  <form method="post" action="{{ url_for('study_start') }}" class="stack-form">
+    <label>Subject</label>
+    <select name="subject_id">
+      <option value="">All subjects</option>
+      {% for s in subjects %}
+      <option value="{{ s.id }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Number of questions</label>
+    <input type="number" name="count" value="10" min="1" max="50">
+
+    <button type="submit" class="btn btn-primary btn-lg">Start session</button>
+  </form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Questions · Glicko Study{% endblock %}
+{% block content %}
+
+<h1>Questions</h1>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Add a question</h2>
+    {% if not topics %}
+      <p class="muted">Add a subject and topic first.</p>
+    {% else %}
+    <form method="post" action="{{ url_for('add_question') }}" class="stack-form">
+      <label>Topic</label>
+      <select name="topic_id" required>
+        <option value="" disabled selected>Choose topic</option>
+        {% for t in topics %}
+        <option value="{{ t.id }}" {{ 'selected' if topic_filter == t.id }}>{{ t.subject_name }} — {{ t.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label>Question</label>
+      <textarea name="text" rows="3" placeholder="Question text" required></textarea>
+
+      <label>Answer / worked solution <span class="muted small">(optional, shown when you self-grade)</span></label>
+      <textarea name="answer" rows="3" placeholder="Answer or solution"></textarea>
+
+      <button type="submit" class="btn btn-primary">Add question</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Question bank</h2>
+      <form method="get" action="{{ url_for('questions') }}">
+        <select name="topic_id" onchange="this.form.submit()">
+          <option value="">All topics</option>
+          {% for t in topics %}
+          <option value="{{ t.id }}" {{ 'selected' if topic_filter == t.id }}>{{ t.subject_name }} — {{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <ul class="question-list">
+      {% for q in questions %}
+      <li>
+        <div class="question-text">{{ q.text }}</div>
+        <div class="question-meta">
+          <span>{{ q.topic_name }}</span>
+          <span>rating {{ q.rating | round | int }}</span>
+          <form method="post" action="{{ url_for('delete_question', question_id=q.id) }}" onsubmit="return confirm('Delete this question?');">
+            <input type="hidden" name="topic_id" value="{{ topic_filter or '' }}">
+            <button type="submit" class="btn-icon" title="Delete">✕</button>
+          </form>
+        </div>
+      </li>
+      {% else %}
+      <li class="muted">No questions yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+{% endblock %}

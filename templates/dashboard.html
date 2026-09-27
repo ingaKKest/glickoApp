@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Glicko Study{% endblock %}
+{% block content %}
+
+<div class="hero">
+  <div>
+    <h1>Your study overview</h1>
+    <p class="muted">Ratings update as you practice — lower rating means a topic needs more attention.</p>
+  </div>
+  <a href="{{ url_for('study_setup') }}" class="btn btn-primary btn-lg">Start studying</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-num">{{ total_subjects }}</div>
+    <div class="stat-label">Subjects</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ total_topics }}</div>
+    <div class="stat-label">Topics</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ total_questions }}</div>
+    <div class="stat-label">Questions</div>
+  </div>
+  <div class="stat-card highlight">
+    <div class="stat-num">{{ total_due }}</div>
+    <div class="stat-label">Due now</div>
+  </div>
+</div>
+
+{% if not subject_data %}
+  <div class="empty-state">
+    <p>No subjects yet.</p>
+    <a href="{{ url_for('manage') }}" class="btn btn-primary">Add your first subject</a>
+  </div>
+{% endif %}
+
+{% for s in subject_data %}
+<section class="subject-block">
+  <div class="subject-header">
+    <h2>{{ s.row.name }}</h2>
+    <a href="{{ url_for('study_start') }}" class="link-btn">Study this subject →</a>
+  </div>
+
+  {% if not s.topics %}
+    <p class="muted small">No topics yet — add one from the Subjects &amp; Topics page.</p>
+  {% else %}
+  <div class="topic-grid">
+    {% for t in s.topics %}
+    <div class="topic-card">
+      <div class="topic-card-head">
+        <span class="topic-name">{{ t.row.name }}</span>
+        <span class="rating-pill">{{ t.row.rating | round | int }} ± {{ t.row.rd | round | int }}</span>
+      </div>
+      <div class="rating-bar">
+        <div class="rating-bar-fill" style="width: {{ t.pct }}%;"></div>
+      </div>
+      <div class="topic-card-foot">
+        <span>{{ t.qcount }} question{{ 's' if t.qcount != 1 }}</span>
+        <span class="{{ 'due-badge' if t.due > 0 }}">{{ t.due }} due</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+{% endblock %}

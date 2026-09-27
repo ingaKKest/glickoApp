@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Session complete · Glicko Study{% endblock %}
+{% block content %}
+
+<div class="center-panel">
+  <div class="complete-card">
+    <h1>Session complete 🎉</h1>
+    <p class="muted">You answered {{ total }} question{{ 's' if total != 1 }}. Ratings have been updated.</p>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-num">{{ correct }}</div>
+        <div class="stat-label">Correct</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{{ minor }}</div>
+        <div class="stat-label">Minor errors</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{{ wrong }}</div>
+        <div class="stat-label">Incorrect</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-num">{{ avg }}</div>
+        <div class="stat-label">Avg score</div>
+      </div>
+    </div>
+
+    <div class="button-row">
+      <a href="{{ url_for('study_setup') }}" class="btn btn-primary">Study again</a>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to dashboard</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

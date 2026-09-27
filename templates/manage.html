@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Subjects & Topics · Glicko Study{% endblock %}
+{% block content %}
+
+<h1>Subjects &amp; Topics</h1>
+<p class="muted">Subjects group related topics. Each topic tracks its own Glicko rating.</p>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Add a subject</h2>
+    <form method="post" action="{{ url_for('add_subject') }}" class="inline-form">
+      <input type="text" name="name" placeholder="e.g. Calculus" required>
+      <button type="submit" class="btn btn-primary">Add subject</button>
+    </form>
+
+    <ul class="simple-list">
+      {% for s in subjects %}
+      <li>
+        <span>{{ s.name }}</span>
+        <form method="post" action="{{ url_for('delete_subject', subject_id=s.id) }}"
+              onsubmit="return confirm('Delete this subject and all its topics/questions?');">
+          <button type="submit" class="btn-icon" title="Delete">✕</button>
+        </form>
+      </li>
+      {% else %}
+      <li class="muted">No subjects yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>Add a topic</h2>
+    <form method="post" action="{{ url_for('add_topic') }}" class="inline-form">
+      <select name="subject_id" required>
+        <option value="" disabled selected>Choose subject</option>
+        {% for s in subjects %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="name" placeholder="e.g. Integration by parts" required>
+      <button type="submit" class="btn btn-primary">Add topic</button>
+    </form>
+
+    <ul class="simple-list">
+      {% for t in topics %}
+      <li>
+        <span>{{ t.name }} <span class="muted small">— {{ t.subject_name }} · {{ t.rating | round | int }} rating</span></span>
+        <form method="post" action="{{ url_for('delete_topic', topic_id=t.id) }}"
+              onsubmit="return confirm('Delete this topic and all its questions?');">
+          <button type="submit" class="btn-icon" title="Delete">✕</button>
+        </form>
+      </li>
+      {% else %}
+      <li class="muted">No topics yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+{% endblock %}
