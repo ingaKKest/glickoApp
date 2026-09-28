@@ -1,13 +1,16 @@
-{% extends "base.html" %}
-{% block title %}Dashboard · Glicko{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Dashboard · Glicko{% endblock %} {%
+block content %}
 
 <div class="hero">
   <div>
     <h1>Your study overview</h1>
-    <p class="muted">See how you're doing at a glance — practice brings the weaker ones up.</p>
+    <p class="muted">
+      See how you're doing at a glance — practice brings the weaker ones up.
+    </p>
   </div>
-  <a href="{{ url_for('study_setup') }}" class="btn btn-primary btn-lg">Start studying</a>
+  <a href="{{ url_for('study_setup') }}" class="btn btn-primary btn-lg"
+    >Start studying</a
+  >
 </div>
 
 <div class="stat-row">
@@ -25,46 +28,58 @@
   </div>
   <div class="stat-card highlight">
     <div class="stat-num">{{ total_due }}</div>
-    <div class="stat-label">Due now</div>
+    <div class="stat-label">Urgent now</div>
   </div>
 </div>
 
 {% if not subject_data %}
-  <div class="empty-state">
-    <p>No subjects yet.</p>
-    <a href="{{ url_for('manage') }}" class="btn btn-primary">Add your first subject</a>
-  </div>
-{% endif %}
-
-{% for s in subject_data %}
+<div class="empty-state">
+  <p>No subjects yet.</p>
+  <a href="{{ url_for('manage') }}" class="btn btn-primary"
+    >Add your first subject</a
+  >
+</div>
+{% endif %} {% for s in subject_data %}
 <section class="subject-block">
   <div class="subject-header">
     <h2>{{ s.row.name }}</h2>
-    <a href="{{ url_for('study_quickstart', subject_id=s.row.id) }}" class="link-btn">Study this subject →</a>
+    <a
+      href="{{ url_for('study_quickstart', subject_id=s.row.id) }}"
+      class="link-btn"
+      >Study this subject →</a
+    >
   </div>
 
   {% if not s.topics %}
-    <p class="muted small">No topics yet — add one from the Subjects &amp; Topics page.</p>
+  <p class="muted small">
+    No topics yet — add one from the Subjects &amp; Topics page.
+  </p>
   {% else %}
   <div class="topic-grid">
     {% for t in s.topics %}
     <div class="topic-card">
       <div class="topic-card-head">
         <span class="topic-name">{{ t.row.name }}</span>
-        <span class="rating-pill {{ rating_label(t.row.rating)[1] }}">{{ rating_label(t.row.rating)[0] }}</span>
+        <span class="rating-pill {{ rating_label(t.row.rating)[1] }}"
+          >{{ rating_label(t.row.rating)[0] }}</span
+        >
       </div>
       <div class="rating-bar">
-        <div class="rating-bar-fill" style="width: {{ t.pct }}%;"></div>
+        <progress
+          class="rating-bar-fill"
+          value="{{ t.pct | int }}"
+          max="100"
+        ></progress>
       </div>
       <div class="topic-card-foot">
         <span>{{ t.qcount }} question{{ 's' if t.qcount != 1 }}</span>
-        <span class="{{ 'due-badge' if t.due > 0 }}">{{ t.due }} due</span>
+        <span class="{{ 'urgent-badge' if t.due > 0 }}"
+          >{{ t.due }} urgent</span
+        >
       </div>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 </section>
-{% endfor %}
-
-{% endblock %}
+{% endfor %} {% endblock %}

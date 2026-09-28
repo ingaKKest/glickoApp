@@ -11,12 +11,11 @@ import db
 import glicko
 import sm2
 from selection import pick_next_question
-from labels import rating_label, confidence_label
+from labels import rating_label, question_rating_label, confidence_label
 from auth import login_required
 
 app = Flask(__name__)
 
-# Persist the secret key across restarts so logins survive a server restart.
 SECRET_KEY_PATH = os.path.join(os.path.dirname(__file__), '.secret_key')
 if os.path.exists(SECRET_KEY_PATH):
     with open(SECRET_KEY_PATH) as f:
@@ -34,10 +33,9 @@ ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 db.init_db()
 
 app.jinja_env.globals['rating_label'] = rating_label
+app.jinja_env.globals['question_rating_label'] = question_rating_label
 app.jinja_env.globals['confidence_label'] = confidence_label
 
-
-# ---------- helpers ----------
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
@@ -50,6 +48,18 @@ def save_image(file_storage):
         file_storage.save(os.path.join(UPLOAD_DIR, fname))
         return fname
     return None
+
+
+@app.route('/upload_image', methods=['POST'])
+@login_required
+def upload_image():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    file = request.files['file']
+    fname = save_image(file)
+    if fname:
+        return jsonify({'url': url_for('static', filename='uploads/' + fname)})
+    return jsonify({'error': 'Invalid image format'}), 400
 
 
 def topic_due_count(conn, topic_id):
@@ -79,13 +89,46 @@ def question_payload(conn, qid, answered_so_far):
         "JOIN topics ON topics.id = questions.topic_id WHERE questions.id = ?", (qid,)
     ).fetchone()
     return {
+        'id': q['id'],
         'count': answered_so_far,
         'topic_name': q['topic_name'],
         'text': q['text'],
         'answer': q['answer'] or '',
-        'image_url': url_for('static', filename='uploads/' + q['image_filename']) if q['image_filename'] else None,
-        'answer_image_url': url_for('static', filename='uploads/' + q['answer_image_filename']) if q['answer_image_filename'] else None,
     }
+
+
+def get_next_study_question(conn, topics, last_qid=None, seen_ids=None):
+    if not topics:
+        return None
+
+    topic_ids = [t['id'] for t in topics]
+    placeholders = ','.join('?' for _ in topic_ids)
+
+    count_row = conn.execute(
+        f"SELECT COUNT(*) c FROM questions WHERE topic_id IN ({placeholders})",
+        topic_ids
+    ).fetchone()
+    total_q = count_row['c'] if count_row else 0
+
+    if total_q == 0:
+        return None
+
+    # If only 1 total question exists, allow repeating it back-to-back
+    if total_q == 1:
+        return pick_next_question(conn, topics, exclude_ids=set())
+
+    # More than 1 question exists: strictly exclude last_qid
+    exclude = set(seen_ids or [])
+    if last_qid is not None:
+        exclude.add(last_qid)
+
+    nxt = pick_next_question(conn, topics, exclude_ids=exclude)
+
+    # Fallback if history exclusion emptied pool: strictly exclude ONLY last_qid
+    if not nxt and last_qid is not None:
+        nxt = pick_next_question(conn, topics, exclude_ids={last_qid})
+
+    return nxt
 
 
 # ---------- auth ----------
@@ -205,16 +248,49 @@ def manage():
 def add_subject():
     uid = session['user_id']
     name = request.form.get('name', '').strip()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if not name:
+        if is_ajax:
+            return jsonify({'error': 'Subject name cannot be empty.'}), 400
+        flash('Subject name cannot be empty.', 'error')
+        return redirect(url_for('manage'))
+
+    conn = db.get_db()
+    try:
+        cur = conn.execute("INSERT INTO subjects (user_id, name) VALUES (?, ?)", (uid, name))
+        new_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+
+        if is_ajax:
+            return jsonify({'success': True, 'subject': {'id': new_id, 'name': name}})
+
+        flash(f'Added subject "{name}".', 'success')
+    except db.sqlite3.IntegrityError:
+        conn.close()
+        if is_ajax:
+            return jsonify({'error': f'Subject "{name}" already exists.'}), 400
+        flash(f'Subject "{name}" already exists.', 'error')
+
+    return redirect(url_for('manage'))
+
+
+@app.route('/subjects/<int:subject_id>/edit', methods=['POST'])
+@login_required
+def edit_subject(subject_id):
+    uid = session['user_id']
+    name = request.form.get('name', '').strip()
     if not name:
         flash('Subject name cannot be empty.', 'error')
         return redirect(url_for('manage'))
     conn = db.get_db()
     try:
-        conn.execute("INSERT INTO subjects (user_id, name) VALUES (?, ?)", (uid, name))
+        conn.execute("UPDATE subjects SET name = ? WHERE id = ? AND user_id = ?", (name, subject_id, uid))
         conn.commit()
-        flash(f'Added subject "{name}".', 'success')
+        flash('Subject updated successfully.', 'success')
     except db.sqlite3.IntegrityError:
-        flash(f'Subject "{name}" already exists.', 'error')
+        flash(f'Subject name "{name}" already exists.', 'error')
     conn.close()
     return redirect(url_for('manage'))
 
@@ -237,24 +313,65 @@ def add_topic():
     uid = session['user_id']
     subject_id = request.form.get('subject_id')
     name = request.form.get('name', '').strip()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if not subject_id or not name:
+        if is_ajax:
+            return jsonify({'error': 'Pick a subject and enter a topic name.'}), 400
         flash('Pick a subject and enter a topic name.', 'error')
         return redirect(url_for('manage'))
+
     conn = db.get_db()
     owned = conn.execute("SELECT id FROM subjects WHERE id = ? AND user_id = ?", (subject_id, uid)).fetchone()
     if not owned:
         conn.close()
+        if is_ajax:
+            return jsonify({'error': 'Subject not found.'}), 404
         flash('Subject not found.', 'error')
         return redirect(url_for('manage'))
+
     try:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO topics (subject_id, name, rating, rd, last_update) VALUES (?, ?, ?, ?, ?)",
             (subject_id, name, glicko.DEFAULT_RATING, glicko.DEFAULT_RD, datetime.utcnow().isoformat())
         )
+        new_id = cur.lastrowid
         conn.commit()
+        conn.close()
+
+        if is_ajax:
+            return jsonify({'success': True, 'topic': {'id': new_id, 'name': name, 'subject_id': int(subject_id)}})
+
         flash(f'Added topic "{name}".', 'success')
     except db.sqlite3.IntegrityError:
+        conn.close()
+        if is_ajax:
+            return jsonify({'error': 'That topic already exists in this subject.'}), 400
         flash('That topic already exists in this subject.', 'error')
+
+    return redirect(url_for('manage'))
+
+
+@app.route('/topics/<int:topic_id>/edit', methods=['POST'])
+@login_required
+def edit_topic(topic_id):
+    uid = session['user_id']
+    subject_id = request.form.get('subject_id')
+    name = request.form.get('name', '').strip()
+    if not subject_id or not name:
+        flash('Pick a subject and enter a topic name.', 'error')
+        return redirect(url_for('manage'))
+    conn = db.get_db()
+    try:
+        conn.execute(
+            "UPDATE topics SET name = ?, subject_id = ? WHERE id = ? AND subject_id IN "
+            "(SELECT id FROM subjects WHERE user_id = ?)",
+            (name, subject_id, topic_id, uid)
+        )
+        conn.commit()
+        flash('Topic updated successfully.', 'success')
+    except db.sqlite3.IntegrityError:
+        flash('Topic name already exists in selected subject.', 'error')
     conn.close()
     return redirect(url_for('manage'))
 
@@ -282,6 +399,11 @@ def questions():
     uid = session['user_id']
     conn = db.get_db()
     topic_filter = request.args.get('topic_id', type=int)
+
+    subjects = conn.execute(
+        "SELECT * FROM subjects WHERE user_id = ? ORDER BY name", (uid,)
+    ).fetchall()
+
     topics = conn.execute(
         "SELECT topics.*, subjects.name AS subject_name FROM topics "
         "JOIN subjects ON subjects.id = topics.subject_id WHERE subjects.user_id = ? "
@@ -301,12 +423,18 @@ def questions():
             "SELECT questions.*, topics.name AS topic_name FROM questions "
             "JOIN topics ON topics.id = questions.topic_id "
             "JOIN subjects ON subjects.id = topics.subject_id "
-            "WHERE subjects.user_id = ? ORDER BY questions.id DESC LIMIT 100",
+            "WHERE subjects.user_id = ? ORDER BY questions.id DESC LIMIT 150",
             (uid,)
         ).fetchall()
 
     conn.close()
-    return render_template('questions.html', topics=topics, questions=q_rows, topic_filter=topic_filter)
+    return render_template(
+        'questions.html',
+        subjects=subjects,
+        topics=topics,
+        questions=q_rows,
+        topic_filter=topic_filter
+    )
 
 
 @app.route('/questions/add', methods=['POST'])
@@ -316,7 +444,11 @@ def add_question():
     topic_id = request.form.get('topic_id')
     text = request.form.get('text', '').strip()
     answer = request.form.get('answer', '').strip()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if not topic_id or not text:
+        if is_ajax:
+            return jsonify({'error': 'Pick a topic and enter question text.'}), 400
         flash('Pick a topic and enter question text.', 'error')
         return redirect(url_for('questions'))
 
@@ -325,27 +457,87 @@ def add_question():
         "SELECT topics.id FROM topics JOIN subjects ON subjects.id = topics.subject_id "
         "WHERE topics.id = ? AND subjects.user_id = ?", (topic_id, uid)
     ).fetchone()
+
     if not owned:
         conn.close()
+        if is_ajax:
+            return jsonify({'error': 'Topic not found.'}), 404
         flash('Topic not found.', 'error')
         return redirect(url_for('questions'))
 
     avg_row = conn.execute("SELECT AVG(rating) a FROM questions WHERE topic_id = ?", (topic_id,)).fetchone()
     start_rating = avg_row['a'] if avg_row['a'] is not None else glicko.DEFAULT_RATING
 
-    image_filename = save_image(request.files.get('image'))
-    answer_image_filename = save_image(request.files.get('answer_image'))
-
-    conn.execute(
-        "INSERT INTO questions (topic_id, text, answer, rating, rd, last_update, image_filename, answer_image_filename) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (topic_id, text, answer or None, start_rating, glicko.DEFAULT_RD, datetime.utcnow().isoformat(),
-         image_filename, answer_image_filename)
+    cur = conn.execute(
+        "INSERT INTO questions (topic_id, text, answer, rating, rd, last_update) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (topic_id, text, answer or None, start_rating, glicko.DEFAULT_RD, datetime.utcnow().isoformat())
     )
+    new_qid = cur.lastrowid
     conn.commit()
+
+    q_row = conn.execute(
+        "SELECT questions.*, topics.name AS topic_name FROM questions "
+        "JOIN topics ON topics.id = questions.topic_id WHERE questions.id = ?",
+        (new_qid,)
+    ).fetchone()
+
+    label, css_class = question_rating_label(q_row['rating'])
     conn.close()
+
+    if is_ajax:
+        return jsonify({
+            'success': True,
+            'question': {
+                'id': q_row['id'],
+                'text': q_row['text'],
+                'answer': q_row['answer'] or '',
+                'topic_name': q_row['topic_name'],
+                'rating_label': label,
+                'rating_class': css_class
+            }
+        })
+
     flash('Question added.', 'success')
     return redirect(url_for('questions', topic_id=topic_id))
+
+@app.route('/questions/<int:question_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_question(question_id):
+    uid = session['user_id']
+    conn = db.get_db()
+    q = conn.execute(
+        "SELECT questions.*, topics.subject_id FROM questions JOIN topics ON topics.id = questions.topic_id "
+        "JOIN subjects ON subjects.id = topics.subject_id WHERE questions.id = ? AND subjects.user_id = ?",
+        (question_id, uid)
+    ).fetchone()
+
+    if not q:
+        conn.close()
+        flash('Question not found.', 'error')
+        return redirect(url_for('questions'))
+
+    if request.method == 'POST':
+        topic_id = request.form.get('topic_id')
+        text = request.form.get('text', '').strip()
+        answer = request.form.get('answer', '').strip()
+
+        conn.execute(
+            "UPDATE questions SET topic_id = ?, text = ?, answer = ? WHERE id = ?",
+            (topic_id, text, answer or None, question_id)
+        )
+        conn.commit()
+        conn.close()
+        flash('Question updated.', 'success')
+        return redirect(url_for('questions', topic_id=topic_id))
+
+    topics = conn.execute(
+        "SELECT topics.*, subjects.name AS subject_name FROM topics "
+        "JOIN subjects ON subjects.id = topics.subject_id WHERE subjects.user_id = ? "
+        "ORDER BY subjects.name, topics.name", (uid,)
+    ).fetchall()
+    conn.close()
+    return render_template('edit_question.html', q=q, topics=topics)
 
 
 @app.route('/questions/<int:question_id>/delete', methods=['POST'])
@@ -362,14 +554,6 @@ def delete_question(question_id):
     if q:
         conn.execute("DELETE FROM questions WHERE id = ?", (question_id,))
         conn.commit()
-        for fname in (q['image_filename'], q['answer_image_filename']):
-            if fname:
-                path = os.path.join(UPLOAD_DIR, fname)
-                if os.path.exists(path):
-                    try:
-                        os.remove(path)
-                    except OSError:
-                        pass
     conn.close()
     flash('Question deleted.', 'success')
     return redirect(url_for('questions', topic_id=topic_id))
@@ -392,6 +576,7 @@ def _start_session(subject_id):
     session['study_scores'] = []
     session['study_seen'] = []
     session.pop('study_current_qid', None)
+    session.pop('study_last_qid', None)
 
 
 @app.route('/study/start', methods=['POST'])
@@ -427,10 +612,15 @@ def study_session():
     qid = session.get('study_current_qid')
     if not qid:
         topics = user_topics(conn, uid, session.get('study_subject_id'))
-        q = pick_next_question(conn, topics, set(session.get('study_seen', [])))
+        q = get_next_study_question(
+            conn,
+            topics,
+            last_qid=session.get('study_last_qid'),
+            seen_ids=session.get('study_seen', [])
+        )
         if not q:
             conn.close()
-            flash('No questions available yet for this — add some first.', 'error')
+            flash('No questions available yet for this subject — add some first.', 'error')
             return redirect(url_for('questions'))
         qid = q['id']
         session['study_current_qid'] = qid
@@ -464,7 +654,6 @@ def study_answer():
 
     t = conn.execute("SELECT * FROM topics WHERE id = ?", (q['topic_id'],)).fetchone()
 
-    # --- topic (player) side: buffer into the rating period, flush at 5 ---
     pending = json.loads(t['pending_results'])
     pending.append([q['rating'], q['rd'], score])
 
@@ -478,13 +667,11 @@ def study_answer():
     else:
         conn.execute("UPDATE topics SET pending_results = ? WHERE id = ?", (json.dumps(pending), t['id']))
 
-    # --- question side: immediate update, opponent = topic rating/RD as of this answer ---
     q_days_elapsed = glicko.days_between(q['last_update'], now)
     new_q_rating, new_q_rd = glicko.update_rating(
         q['rating'], q['rd'], [(t['rating'], t['rd'], 1 - score)], q_days_elapsed
     )
 
-    # --- SM-2 scheduling for this question ---
     n, ef, interval, next_eligible = sm2.sm2_update(score, q['sm2_n'], q['sm2_ef'], q['sm2_interval'])
 
     conn.execute(
@@ -501,13 +688,21 @@ def study_answer():
     scores = session.get('study_scores', [])
     scores.append(score)
     session['study_scores'] = scores
+
     seen = session.get('study_seen', [])
     seen.append(qid)
     session['study_seen'] = seen[-12:]
+
+    session['study_last_qid'] = qid
     session.pop('study_current_qid', None)
 
     topics = user_topics(conn, uid, session.get('study_subject_id'))
-    nxt = pick_next_question(conn, topics, set(session['study_seen']))
+    nxt = get_next_study_question(
+        conn,
+        topics,
+        last_qid=qid,
+        seen_ids=session['study_seen']
+    )
     if not nxt:
         conn.close()
         return jsonify({'empty': True})
@@ -532,6 +727,7 @@ def study_complete():
     session.pop('study_scores', None)
     session.pop('study_seen', None)
     session.pop('study_current_qid', None)
+    session.pop('study_last_qid', None)
 
     return render_template('study_complete.html', total=total, avg=avg, correct=correct, minor=minor, wrong=wrong)
 

@@ -2,46 +2,75 @@
 {% block title %}Questions · Glicko{% endblock %}
 {% block content %}
 
-<h1>Questions</h1>
+<div class="page-header">
+  <h1>Question Management</h1>
+  <p class="muted">Add questions with rich text, code snippets, and inline drag-and-drop images.</p>
+</div>
 
-<div class="two-col">
-  <section class="panel">
-    <h2>Add a question</h2>
-    {% if not topics %}
-      <p class="muted">Add a subject and topic first.</p>
-    {% else %}
-    <form method="post" action="{{ url_for('add_question') }}" class="stack-form" enctype="multipart/form-data">
-      <label>Topic</label>
-      <select name="topic_id" required>
-        <option value="" disabled selected>Choose topic</option>
-        {% for t in topics %}
-        <option value="{{ t.id }}" {{ 'selected' if topic_filter == t.id }}>{{ t.subject_name }} — {{ t.name }}</option>
+<div class="two-col question-management-grid">
+  <section class="panel panel-large">
+    <h2>Add a Question</h2>
+    
+    <form method="post" action="{{ url_for('add_question') }}" class="stack-form" id="add-question-form">
+      
+      <!-- Subject Row -->
+      <div class="field-label-row">
+        <label for="add-q-subject">Subject</label>
+        <button type="button" id="btn-show-quick-subject" class="btn-link small">+ New Subject</button>
+      </div>
+      <select id="add-q-subject" required>
+        <option value="" disabled selected>Choose subject</option>
+        {% for s in subjects %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
         {% endfor %}
       </select>
 
-      <label>Question</label>
-      <textarea name="text" rows="3" placeholder="Question text" required></textarea>
+      <div id="quick-subject-box" class="quick-add-box hidden">
+        <div class="quick-add-inputs">
+          <input type="text" id="quick-subject-name" placeholder="New subject name...">
+          <button type="button" id="save-quick-subject" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" id="cancel-quick-subject" class="btn btn-subtle btn-sm">Cancel</button>
+        </div>
+      </div>
 
-      <label>Question image <span class="muted small">(optional)</span></label>
-      <input type="file" name="image" accept="image/*">
+      <!-- Topic Row -->
+      <div class="field-label-row">
+        <label for="add-q-topic">Topic</label>
+        <button type="button" id="btn-show-quick-topic" class="btn-link small" disabled>+ New Topic</button>
+      </div>
+      <select name="topic_id" id="add-q-topic" required disabled>
+        <option value="" disabled selected>Select a subject first</option>
+        {% for t in topics %}
+        <option value="{{ t.id }}" data-subject-id="{{ t.subject_id }}">{{ t.name }}</option>
+        {% endfor %}
+      </select>
 
-      <label>Answer / worked solution <span class="muted small">(optional, shown when you self-grade)</span></label>
-      <textarea name="answer" rows="3" placeholder="Answer or solution"></textarea>
+      <div id="quick-topic-box" class="quick-add-box hidden">
+        <div class="quick-add-inputs">
+          <input type="text" id="quick-topic-name" placeholder="New topic name...">
+          <button type="button" id="save-quick-topic" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" id="cancel-quick-topic" class="btn btn-subtle btn-sm">Cancel</button>
+        </div>
+      </div>
 
-      <label>Answer image <span class="muted small">(optional)</span></label>
-      <input type="file" name="answer_image" accept="image/*">
+      <label>Question Prompt <span class="muted small">(type text or drag/paste images directly into the box)</span></label>
+      <div class="rich-editor rich-editor-lg" contenteditable="true" data-target="text-input" placeholder="Type question or drop images here..."></div>
+      <input type="hidden" name="text" id="text-input" required>
 
-      <button type="submit" class="btn btn-primary">Add question</button>
+      <label>Answer / Worked Solution <span class="muted small">(drag/paste images or solution text)</span></label>
+      <div class="rich-editor rich-editor-lg" contenteditable="true" data-target="answer-input" placeholder="Type answer or drop solution diagram here..."></div>
+      <input type="hidden" name="answer" id="answer-input">
+
+      <button type="submit" class="btn btn-primary btn-lg">Save Question</button>
     </form>
-    {% endif %}
   </section>
 
-  <section class="panel">
+  <section class="panel panel-large">
     <div class="panel-head">
-      <h2>Question bank</h2>
+      <h2>Question Bank</h2>
       <form method="get" action="{{ url_for('questions') }}">
         <select name="topic_id" onchange="this.form.submit()">
-          <option value="">All topics</option>
+          <option value="">All Topics</option>
           {% for t in topics %}
           <option value="{{ t.id }}" {{ 'selected' if topic_filter == t.id }}>{{ t.subject_name }} — {{ t.name }}</option>
           {% endfor %}
@@ -49,24 +78,27 @@
       </form>
     </div>
 
-    <ul class="question-list">
+    <ul class="question-list question-list-expanded">
       {% for q in questions %}
       <li>
-        {% if q.image_filename %}
-        <img src="{{ url_for('static', filename='uploads/' + q.image_filename) }}" class="q-thumb" alt="">
+        <div class="question-text">{{ q.text | safe }}</div>
+        {% if q.answer %}
+        <div class="question-answer-preview muted small"><strong>Ans:</strong> {{ q.answer | safe }}</div>
         {% endif %}
-        <div class="question-text">{{ q.text }}</div>
         <div class="question-meta">
           <span>{{ q.topic_name }}</span>
-          <span class="rating-pill {{ rating_label(q.rating)[1] }}">{{ rating_label(q.rating)[0] }}</span>
-          <form method="post" action="{{ url_for('delete_question', question_id=q.id) }}" onsubmit="return confirm('Delete this question?');">
-            <input type="hidden" name="topic_id" value="{{ topic_filter or '' }}">
-            <button type="submit" class="btn-icon" title="Delete">✕</button>
-          </form>
+          <span class="rating-pill {{ question_rating_label(q.rating)[1] }}">{{ question_rating_label(q.rating)[0] }}</span>
+          <div class="question-actions">
+            <a href="{{ url_for('edit_question', question_id=q.id) }}" class="btn-icon btn-icon-edit" title="Edit Question">✎ Edit</a>
+            <form method="post" action="{{ url_for('delete_question', question_id=q.id) }}" onsubmit="return confirm('Delete this question?');">
+              <input type="hidden" name="topic_id" value="{{ topic_filter or '' }}">
+              <button type="submit" class="btn-icon" title="Delete">✕</button>
+            </form>
+          </div>
         </div>
       </li>
       {% else %}
-      <li class="muted">No questions yet.</li>
+      <li class="muted">No questions found for this selection.</li>
       {% endfor %}
     </ul>
   </section>

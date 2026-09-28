@@ -17,11 +17,29 @@
       {% for s in subjects %}
       <li>
         <span>{{ s.name }}</span>
-        <form method="post" action="{{ url_for('delete_subject', subject_id=s.id) }}"
-              onsubmit="return confirm('Delete this subject and all its topics/questions?');">
-          <button type="submit" class="btn-icon" title="Delete">✕</button>
-        </form>
+        <div class="item-actions">
+          <button class="btn-icon btn-icon-edit" onclick="openModal('edit-subject-{{ s.id }}')">✎</button>
+          <form method="post" action="{{ url_for('delete_subject', subject_id=s.id) }}"
+                onsubmit="return confirm('Delete this subject and all its topics/questions?');">
+            <button type="submit" class="btn-icon" title="Delete">✕</button>
+          </form>
+        </div>
       </li>
+
+      <!-- Edit Subject Modal -->
+      <div id="edit-subject-{{ s.id }}" class="modal-overlay hidden">
+        <div class="modal-card">
+          <h2>Edit Subject</h2>
+          <form method="post" action="{{ url_for('edit_subject', subject_id=s.id) }}" class="stack-form">
+            <label>Subject Name</label>
+            <input type="text" name="name" value="{{ s.name }}" required>
+            <div class="button-row">
+              <button type="button" class="btn btn-secondary" onclick="closeModal('edit-subject-{{ s.id }}')">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
       {% else %}
       <li class="muted">No subjects yet.</li>
       {% endfor %}
@@ -45,11 +63,35 @@
       {% for t in topics %}
       <li>
         <span>{{ t.name }} <span class="muted small">— {{ t.subject_name }} · {{ rating_label(t.rating)[0] }}</span></span>
-        <form method="post" action="{{ url_for('delete_topic', topic_id=t.id) }}"
-              onsubmit="return confirm('Delete this topic and all its questions?');">
-          <button type="submit" class="btn-icon" title="Delete">✕</button>
-        </form>
+        <div class="item-actions">
+          <button class="btn-icon btn-icon-edit" onclick="openModal('edit-topic-{{ t.id }}')">✎</button>
+          <form method="post" action="{{ url_for('delete_topic', topic_id=t.id) }}"
+                onsubmit="return confirm('Delete this topic and all its questions?');">
+            <button type="submit" class="btn-icon" title="Delete">✕</button>
+          </form>
+        </div>
       </li>
+
+      <!-- Edit Topic Modal -->
+      <div id="edit-topic-{{ t.id }}" class="modal-overlay hidden">
+        <div class="modal-card">
+          <h2>Edit Topic</h2>
+          <form method="post" action="{{ url_for('edit_topic', topic_id=t.id) }}" class="stack-form">
+            <label>Subject</label>
+            <select name="subject_id" required>
+              {% for s in subjects %}
+              <option value="{{ s.id }}" {{ 'selected' if s.id == t.subject_id }}>{{ s.name }}</option>
+              {% endfor %}
+            </select>
+            <label>Topic Name</label>
+            <input type="text" name="name" value="{{ t.name }}" required>
+            <div class="button-row">
+              <button type="button" class="btn btn-secondary" onclick="closeModal('edit-topic-{{ t.id }}')">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
       {% else %}
       <li class="muted">No topics yet.</li>
       {% endfor %}

@@ -1,38 +1,58 @@
-{% extends "base.html" %}
-{% block title %}Studying · Glicko{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Studying · Glicko{% endblock %} {%
+block content %}
 
-<div class="center-panel">
+<div class="center-panel center-panel-study">
   <div class="session-topline">
-    <span class="session-counter">Question <span id="q-count">{{ q.count + 1 }}</span></span>
-    <a href="{{ url_for('study_complete') }}" class="end-link">End session</a>
+    <span class="session-counter"
+      >Question <span id="q-count">{{ q.count + 1 }}</span></span
+    >
+    <div class="session-actions">
+      <a
+        id="q-edit-btn"
+        href="{{ url_for('edit_question', question_id=q.id) }}"
+        target="_blank"
+        class="link-btn-edit"
+        >✎ Edit Question</a
+      >
+      <span class="dot-divider">•</span>
+      <a href="{{ url_for('study_complete') }}" class="end-link">End session</a>
+    </div>
   </div>
 
-  <div class="question-card">
+  <div class="question-card question-card-large">
     <div class="topic-badge" id="topic-badge">{{ q.topic_name }}</div>
 
-    <img src="{{ q.image_url or '' }}" alt="" class="question-image {{ '' if q.image_url else 'hidden' }}" id="question-image">
-
-    <div class="question-body" id="question-text">{{ q.text }}</div>
-
-    <div id="answer-block" class="answer-block hidden">
-      <div class="answer-label">Answer</div>
-      <img src="{{ q.answer_image_url or '' }}" alt="" class="answer-image {{ '' if q.answer_image_url else 'hidden' }}" id="answer-image">
-      <div id="answer-text" class="answer-text">{{ q.answer or "No reference answer saved for this question." }}</div>
+    <div class="question-body question-body-large" id="question-text">
+      {{ q.text | safe }}
     </div>
 
-    <button id="reveal-btn" class="btn btn-secondary">Show answer</button>
+    <div id="answer-block" class="answer-block answer-block-large hidden">
+      <div class="answer-label">Answer</div>
+      <div id="answer-text" class="answer-text">
+        {{ (q.answer or "No reference answer saved for this question.") | safe
+        }}
+      </div>
+    </div>
+
+    <button id="reveal-btn" class="btn btn-secondary btn-lg">
+      Show Answer
+    </button>
 
     <div id="grade-buttons" class="grade-buttons hidden">
-      <p class="grade-prompt">How did you do?</p>
+      <p class="grade-prompt">How well did you recall this?</p>
       <div class="grade-row">
-        <button class="btn btn-grade grade-correct" data-score="1">✓ Correct</button>
-        <button class="btn btn-grade grade-minor" data-score="0.7">≈ Minor error</button>
-        <button class="btn btn-grade grade-wrong" data-score="0">✕ Incorrect</button>
+        <button class="btn btn-grade grade-wrong" data-score="0">
+          ✕ Incorrect
+        </button>
+        <button class="btn btn-grade grade-minor" data-score="0.7">
+          ≈ Minor error
+        </button>
+        <button class="btn btn-grade grade-correct" data-score="1">
+          ✓ Correct
+        </button>
       </div>
     </div>
   </div>
 </div>
 
-<script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}

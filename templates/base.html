@@ -1,42 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Glicko{% endblock %}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-<header class="topbar">
-  <a class="brand" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
-    <span class="brand-mark">🦎</span> Glicko
-  </a>
-  {% if session.get('user_id') %}
-  <nav>
-    <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
-    <a href="{{ url_for('manage') }}" class="{{ 'active' if request.endpoint == 'manage' }}">Subjects &amp; Topics</a>
-    <a href="{{ url_for('questions') }}" class="{{ 'active' if request.endpoint == 'questions' }}">Questions</a>
-    <a href="{{ url_for('study_setup') }}" class="cta {{ 'active' if request.endpoint and request.endpoint.startswith('study') }}">Study</a>
-    <form method="post" action="{{ url_for('logout') }}" class="logout-form">
-      <button type="submit" class="link-btn-plain">Log out</button>
-    </form>
-  </nav>
-  {% endif %}
-</header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Glicko{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <header class="topbar">
+      <a
+        class="brand"
+        href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}"
+      >
+        <span class="brand-mark">🦎</span> Glicko
+      </a>
+      {% if session.get('user_id') %}
+      <nav>
+        <a
+          href="{{ url_for('dashboard') }}"
+          class="{{ 'active' if request.endpoint == 'dashboard' }}"
+          >Dashboard</a
+        >
+        <a
+          href="{{ url_for('manage') }}"
+          class="{{ 'active' if request.endpoint == 'manage' }}"
+          >Subjects &amp; Topics</a
+        >
+        <a
+          href="{{ url_for('questions') }}"
+          class="{{ 'active' if request.endpoint and request.endpoint.startswith('question') }}"
+          >Questions</a
+        >
+        <a
+          href="{{ url_for('study_setup') }}"
+          class="cta {{ 'active' if request.endpoint and request.endpoint.startswith('study') }}"
+          >Study</a
+        >
+        <form
+          method="post"
+          action="{{ url_for('logout') }}"
+          class="logout-form"
+        >
+          <button type="submit" class="link-btn-plain">Log out</button>
+        </form>
+      </nav>
+      {% endif %}
+    </header>
 
-<main class="container">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
+    <main class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %}
       <div class="flash-stack">
-      {% for category, message in messages %}
+        {% for category, message in messages %}
         <div class="flash flash-{{ category }}">{{ message }}</div>
-      {% endfor %}
+        {% endfor %}
       </div>
-    {% endif %}
-  {% endwith %}
-  {% block content %}{% endblock %}
-</main>
-</body>
+      {% endif %} {% endwith %} {% block content %}{% endblock %}
+    </main>
+
+    <div id="image-lightbox" class="lightbox-modal hidden">
+      <img
+        id="lightbox-img"
+        class="lightbox-content"
+        src=""
+        alt="Zoomed image"
+      />
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
 </html>
