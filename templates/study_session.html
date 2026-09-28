@@ -1,21 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Studying · Glicko Study{% endblock %}
+{% block title %}Studying · Glicko{% endblock %}
 {% block content %}
 
 <div class="center-panel">
-  <div class="session-progress">
-    <div class="progress-track">
-      <div id="progress-fill" class="progress-fill" style="width: {{ (q.index / q.total * 100) | round(1) }}%;"></div>
-    </div>
-    <div class="progress-label"><span id="q-index">{{ q.index + 1 }}</span> of <span id="q-total">{{ q.total }}</span></div>
+  <div class="session-topline">
+    <span class="session-counter">Question <span id="q-count">{{ q.count + 1 }}</span></span>
+    <a href="{{ url_for('study_complete') }}" class="end-link">End session</a>
   </div>
 
   <div class="question-card">
     <div class="topic-badge" id="topic-badge">{{ q.topic_name }}</div>
+
+    <img src="{{ q.image_url or '' }}" alt="" class="question-image {{ '' if q.image_url else 'hidden' }}" id="question-image">
+
     <div class="question-body" id="question-text">{{ q.text }}</div>
 
     <div id="answer-block" class="answer-block hidden">
       <div class="answer-label">Answer</div>
+      <img src="{{ q.answer_image_url or '' }}" alt="" class="answer-image {{ '' if q.answer_image_url else 'hidden' }}" id="answer-image">
       <div id="answer-text" class="answer-text">{{ q.answer or "No reference answer saved for this question." }}</div>
     </div>
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Questions · Glicko Study{% endblock %}
+{% block title %}Questions · Glicko{% endblock %}
 {% block content %}
 
 <h1>Questions</h1>
@@ -10,7 +10,7 @@
     {% if not topics %}
       <p class="muted">Add a subject and topic first.</p>
     {% else %}
-    <form method="post" action="{{ url_for('add_question') }}" class="stack-form">
+    <form method="post" action="{{ url_for('add_question') }}" class="stack-form" enctype="multipart/form-data">
       <label>Topic</label>
       <select name="topic_id" required>
         <option value="" disabled selected>Choose topic</option>
@@ -22,8 +22,14 @@
       <label>Question</label>
       <textarea name="text" rows="3" placeholder="Question text" required></textarea>
 
+      <label>Question image <span class="muted small">(optional)</span></label>
+      <input type="file" name="image" accept="image/*">
+
       <label>Answer / worked solution <span class="muted small">(optional, shown when you self-grade)</span></label>
       <textarea name="answer" rows="3" placeholder="Answer or solution"></textarea>
+
+      <label>Answer image <span class="muted small">(optional)</span></label>
+      <input type="file" name="answer_image" accept="image/*">
 
       <button type="submit" class="btn btn-primary">Add question</button>
     </form>
@@ -46,10 +52,13 @@
     <ul class="question-list">
       {% for q in questions %}
       <li>
+        {% if q.image_filename %}
+        <img src="{{ url_for('static', filename='uploads/' + q.image_filename) }}" class="q-thumb" alt="">
+        {% endif %}
         <div class="question-text">{{ q.text }}</div>
         <div class="question-meta">
           <span>{{ q.topic_name }}</span>
-          <span>rating {{ q.rating | round | int }}</span>
+          <span class="rating-pill {{ rating_label(q.rating)[1] }}">{{ rating_label(q.rating)[0] }}</span>
           <form method="post" action="{{ url_for('delete_question', question_id=q.id) }}" onsubmit="return confirm('Delete this question?');">
             <input type="hidden" name="topic_id" value="{{ topic_filter or '' }}">
             <button type="submit" class="btn-icon" title="Delete">✕</button>

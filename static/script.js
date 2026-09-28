@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const questionText = document.getElementById('question-text');
   const answerText = document.getElementById('answer-text');
   const topicBadge = document.getElementById('topic-badge');
-  const qIndex = document.getElementById('q-index');
-  const qTotal = document.getElementById('q-total');
-  const progressFill = document.getElementById('progress-fill');
+  const qCount = document.getElementById('q-count');
+  const questionImage = document.getElementById('question-image');
+  const answerImage = document.getElementById('answer-image');
 
   if (!revealBtn) return;
 
@@ -16,6 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
     gradeButtons.classList.remove('hidden');
     revealBtn.classList.add('hidden');
   });
+
+  function setImage(imgEl, url) {
+    if (url) {
+      imgEl.src = url;
+      imgEl.classList.remove('hidden');
+    } else {
+      imgEl.removeAttribute('src');
+      imgEl.classList.add('hidden');
+    }
+  }
 
   document.querySelectorAll('.btn-grade').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -30,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json();
 
-        if (data.done) {
+        if (data.empty) {
           window.location.href = '/study/complete';
           return;
         }
@@ -39,9 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
         topicBadge.textContent = q.topic_name;
         questionText.textContent = q.text;
         answerText.textContent = q.answer || 'No reference answer saved for this question.';
-        qIndex.textContent = q.index + 1;
-        qTotal.textContent = q.total;
-        progressFill.style.width = (q.index / q.total * 100).toFixed(1) + '%';
+        setImage(questionImage, q.image_url);
+        setImage(answerImage, q.answer_image_url);
+        qCount.textContent = q.count + 1;
 
         answerBlock.classList.add('hidden');
         gradeButtons.classList.add('hidden');

@@ -44,7 +44,7 @@
     <ul class="simple-list">
       {% for t in topics %}
       <li>
-        <span>{{ t.name }} <span class="muted small">— {{ t.subject_name }} · {{ t.rating | round | int }} rating</span></span>
+        <span>{{ t.name }} <span class="muted small">— {{ t.subject_name }} · {{ rating_label(t.rating)[0] }}</span></span>
         <form method="post" action="{{ url_for('delete_topic', topic_id=t.id) }}"
               onsubmit="return confirm('Delete this topic and all its questions?');">
           <button type="submit" class="btn-icon" title="Delete">✕</button>

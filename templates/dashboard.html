@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · Glicko Study{% endblock %}
+{% block title %}Dashboard · Glicko{% endblock %}
 {% block content %}
 
 <div class="hero">
   <div>
     <h1>Your study overview</h1>
-    <p class="muted">Ratings update as you practice — lower rating means a topic needs more attention.</p>
+    <p class="muted">See how you're doing at a glance — practice brings the weaker ones up.</p>
   </div>
   <a href="{{ url_for('study_setup') }}" class="btn btn-primary btn-lg">Start studying</a>
 </div>
@@ -40,7 +40,7 @@
 <section class="subject-block">
   <div class="subject-header">
     <h2>{{ s.row.name }}</h2>
-    <a href="{{ url_for('study_start') }}" class="link-btn">Study this subject →</a>
+    <a href="{{ url_for('study_quickstart', subject_id=s.row.id) }}" class="link-btn">Study this subject →</a>
   </div>
 
   {% if not s.topics %}
@@ -51,7 +51,7 @@
     <div class="topic-card">
       <div class="topic-card-head">
         <span class="topic-name">{{ t.row.name }}</span>
-        <span class="rating-pill">{{ t.row.rating | round | int }} ± {{ t.row.rd | round | int }}</span>
+        <span class="rating-pill {{ rating_label(t.row.rating)[1] }}">{{ rating_label(t.row.rating)[0] }}</span>
       </div>
       <div class="rating-bar">
         <div class="rating-bar-fill" style="width: {{ t.pct }}%;"></div>

@@ -4,7 +4,7 @@
 
 <div class="center-panel">
   <div class="complete-card">
-    <h1>Session complete 🎉</h1>
+    <h1>Nice work</h1>
     <p class="muted">You answered {{ total }} question{{ 's' if total != 1 }}. Ratings have been updated.</p>
 
     <div class="stat-row">
@@ -21,7 +21,7 @@
         <div class="stat-label">Incorrect</div>
       </div>
       <div class="stat-card highlight">
-        <div class="stat-num">{{ avg }}</div>
+        <div class="stat-num">{{ (avg * 100) | round | int }}%</div>
         <div class="stat-label">Avg score</div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 """
-Session generation:
+Infinite-session question selection:
 - Thompson sampling picks which topic each question is drawn from: sample
   Normal(rating, RD) per topic, take the LOWEST sample. Weak topics (low
   rating) draw low samples more often, so they get picked more often, but
@@ -8,8 +8,8 @@ Session generation:
 - Within the chosen topic, sample once from the topic's own Normal(rating, RD),
   binary-search a rating-sorted list of that topic's questions, and take the
   nearest neighbor.
-- Repeating this draw-by-draw naturally interleaves topics rather than
-  blocking by topic.
+- One question is picked per call, so sessions can run indefinitely; the
+  caller re-calls this after every answer, which naturally interleaves topics.
 """
 import random
 import bisect
@@ -43,44 +43,37 @@ def pick_question(topic, questions, exclude_ids):
     return candidates[best_idx]
 
 
-def build_session(db, subject_id, count):
-    if subject_id:
-        topics = db.execute("SELECT * FROM topics WHERE subject_id = ?", (subject_id,)).fetchall()
-    else:
-        topics = db.execute("SELECT * FROM topics").fetchall()
-
+def pick_next_question(conn, topics, exclude_ids):
+    """topics: pre-filtered (already scoped to the right user/subject).
+    exclude_ids: recently-seen question ids to avoid immediate repeats.
+    Returns a single question row, or None if there are truly no questions
+    anywhere in scope."""
     if not topics:
-        return []
+        return None
 
     now_iso = datetime.utcnow().isoformat()
-    topic_questions = {}
+    topic_pools = {}
     for t in topics:
-        due = db.execute(
+        due = conn.execute(
             "SELECT * FROM questions WHERE topic_id = ? AND (next_eligible IS NULL OR next_eligible <= ?)",
             (t['id'], now_iso)
         ).fetchall()
-        all_q = db.execute("SELECT * FROM questions WHERE topic_id = ?", (t['id'],)).fetchall()
-        topic_questions[t['id']] = {'due': list(due), 'all': list(all_q)}
+        all_q = conn.execute("SELECT * FROM questions WHERE topic_id = ?", (t['id'],)).fetchall()
+        topic_pools[t['id']] = list(due) if due else list(all_q)
 
-    session_ids = []
-    exclude_ids = set()
-    attempts, max_attempts = 0, count * 25
-
-    while len(session_ids) < count and attempts < max_attempts:
-        attempts += 1
-        available_topics = [
-            t for t in topics
-            if any(q['id'] not in exclude_ids for q in
-                   (topic_questions[t['id']]['due'] or topic_questions[t['id']]['all']))
-        ]
+    available_topics = [
+        t for t in topics if any(q['id'] not in exclude_ids for q in topic_pools[t['id']])
+    ]
+    if not available_topics:
+        # every question in scope was recently seen - relax and allow repeats
+        available_topics = [t for t in topics if topic_pools[t['id']]]
+        exclude_ids = set()
         if not available_topics:
-            break
-        topic = thompson_pick_topic(available_topics)
-        pool = topic_questions[topic['id']]['due'] or topic_questions[topic['id']]['all']
-        q = pick_question(topic, pool, exclude_ids)
-        if q is None:
-            continue
-        session_ids.append(q['id'])
-        exclude_ids.add(q['id'])
+            return None
 
-    return session_ids
+    topic = thompson_pick_topic(available_topics)
+    pool = topic_pools[topic['id']]
+    q = pick_question(topic, pool, exclude_ids)
+    if q is None:
+        q = pick_question(topic, pool, set())
+    return q
