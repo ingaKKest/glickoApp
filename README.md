@@ -59,27 +59,3 @@ terminal will print a one-time username/password for it.
 - Scoring is self-graded on three levels: **Correct (1)**, **Minor error (0.7)**,
   **Incorrect (0)**.
 
-## A couple of judgment calls worth knowing about
-
-The original design notes didn't fully specify two things, so I made reasonable
-choices — both easy to change in `glicko.py` if you'd rather tune them:
-
-- **RD inflation rate** — I used a constant (`C = 44.7` in `glicko.py`) such that
-  roughly 60 days of inactivity pushes a fully-confident rating (RD 50) back up
-  toward the RD 350 ceiling.
-- **Question-level updates** — since only the topic side of Glicko had an explicit
-  5-question batching rule, questions update immediately after every answer
-  (effectively a rating-period-of-1), using the topic's rating at the moment of
-  the answer as the opponent.
-
-## Project layout
-
-```
-app.py          - routes
-db.py           - SQLite schema + connection
-glicko.py       - Glicko-1 rating engine
-sm2.py          - SM-2 scheduler
-selection.py    - Thompson-sampling topic/question picker for sessions
-templates/      - Jinja templates
-static/         - CSS + the study-session JS
-```
