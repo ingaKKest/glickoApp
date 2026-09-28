@@ -58,4 +58,3 @@ terminal will print a one-time username/password for it.
   pool if nothing is due yet.
 - Scoring is self-graded on three levels: **Correct (1)**, **Minor error (0.7)**,
   **Incorrect (0)**.
-
