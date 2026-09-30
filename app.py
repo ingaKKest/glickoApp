@@ -397,44 +397,65 @@ def delete_topic(topic_id):
 @login_required
 def questions():
     uid = session['user_id']
-    conn = db.get_db()
     topic_filter = request.args.get('topic_id', type=int)
 
-    subjects = conn.execute(
-        "SELECT * FROM subjects WHERE user_id = ? ORDER BY name", (uid,)
-    ).fetchall()
+    conn = db.get_db()
+    
+    # Load user's saved best practices
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT,
+            PRIMARY KEY (user_id, key)
+        )
+    ''')
+    bp_row = conn.execute("SELECT value FROM user_settings WHERE user_id = ? AND key = 'best_practices'", (uid,)).fetchone()
+    
+    default_bp = (
+        "<ul>"
+        "<li><b>Problem → Tool:</b> Describe the problem or goal in the prompt, and the solution/tool in the answer.</li>"
+        "<li><b>Keep Cards Atomic:</b> Test only one key concept per card for faster recall.</li>"
+        "<li><b>Add Explicit Context:</b> Mention language/framework tags so the card makes sense during mixed review.</li>"
+        "<li><b>Visuals & Code:</b> Use code blocks or screenshots for architecture and system design.</li>"
+        "</ul>"
+    )
+    saved_best_practices = bp_row['value'] if bp_row and bp_row['value'] else default_bp
 
-    topics = conn.execute(
-        "SELECT topics.*, subjects.name AS subject_name FROM topics "
-        "JOIN subjects ON subjects.id = topics.subject_id WHERE subjects.user_id = ? "
-        "ORDER BY subjects.name, topics.name", (uid,)
-    ).fetchall()
+    subjects = conn.execute("SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name", (uid,)).fetchall()
+    
+    query = """
+        SELECT q.id, q.text, q.answer, q.rating, t.name as topic_name, s.name as subject_name
+        FROM questions q
+        JOIN topics t ON q.topic_id = t.id
+        JOIN subjects s ON t.subject_id = s.id
+        WHERE s.user_id = ?
+    """
+    params = [uid]
 
     if topic_filter:
-        q_rows = conn.execute(
-            "SELECT questions.*, topics.name AS topic_name FROM questions "
-            "JOIN topics ON topics.id = questions.topic_id "
-            "JOIN subjects ON subjects.id = topics.subject_id "
-            "WHERE topics.id = ? AND subjects.user_id = ? ORDER BY questions.id DESC",
-            (topic_filter, uid)
-        ).fetchall()
-    else:
-        q_rows = conn.execute(
-            "SELECT questions.*, topics.name AS topic_name FROM questions "
-            "JOIN topics ON topics.id = questions.topic_id "
-            "JOIN subjects ON subjects.id = topics.subject_id "
-            "WHERE subjects.user_id = ? ORDER BY questions.id DESC LIMIT 150",
-            (uid,)
-        ).fetchall()
+        query += " AND q.topic_id = ?"
+        params.append(topic_filter)
+
+    query += " ORDER BY q.id DESC"
+    question_rows = conn.execute(query, params).fetchall()
+
+    topics = conn.execute("""
+        SELECT t.id, t.name, t.subject_id, s.name as subject_name
+        FROM topics t
+        JOIN subjects s ON t.subject_id = s.id
+        WHERE s.user_id = ?
+        ORDER BY s.name, t.name
+    """, (uid,)).fetchall()
 
     conn.close()
-    return render_template(
-        'questions.html',
-        subjects=subjects,
-        topics=topics,
-        questions=q_rows,
-        topic_filter=topic_filter
-    )
+
+    return render_template('questions.html', 
+                           questions=question_rows, 
+                           subjects=subjects, 
+                           topics=topics, 
+                           topic_filter=topic_filter,
+                           best_practices=saved_best_practices)
 
 
 @app.route('/questions/add', methods=['POST'])
@@ -711,6 +732,50 @@ def study_answer():
     payload = question_payload(conn, nxt['id'], len(scores))
     conn.close()
     return jsonify({'empty': False, 'next': payload})
+
+
+@app.route('/settings/best-practices', methods=['GET', 'POST'])
+@login_required
+def best_practices():
+    uid = session['user_id']
+    conn = db.get_db()
+
+    # Ensure user settings table exists
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT,
+            PRIMARY KEY (user_id, key)
+        )
+    ''')
+
+    if request.method == 'POST':
+        content = request.form.get('content', '').strip()
+        conn.execute(
+            "INSERT INTO user_settings (user_id, key, value) VALUES (?, 'best_practices', ?) "
+            "ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value",
+            (uid, content)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'content': content})
+
+    # GET request
+    row = conn.execute("SELECT value FROM user_settings WHERE user_id = ? AND key = 'best_practices'", (uid,)).fetchone()
+    conn.close()
+
+    default_practices = (
+        "<ul>"
+        "<li><b>Problem → Tool:</b> Describe the problem or goal in the prompt, and the solution/tool in the answer.</li>"
+        "<li><b>Keep Cards Atomic:</b> Test only one key concept per card for faster recall.</li>"
+        "<li><b>Add Explicit Context:</b> Mention language/framework tags so the card makes sense during mixed review.</li>"
+        "<li><b>Visuals & Code:</b> Use code blocks or screenshots for architecture and system design.</li>"
+        "</ul>"
+    )
+
+    content = row['value'] if row and row['value'] else default_practices
+    return jsonify({'content': content})
 
 
 @app.route('/study/complete')

@@ -1230,3 +1230,82 @@ textarea {
 .quick-add-inputs input {
   flex: 1;
 }
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.editor-toolbar {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: var(--bg-subtle, #f6f8fa);
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+  padding: 0.2rem;
+}
+
+.tb-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-color, #24292f);
+}
+
+.tb-btn:hover {
+  background: var(--hover-color, #e1e4e8);
+}
+
+/* Modal Styling */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--bg-panel, #ffffff);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 550px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-footer {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.rich-editor pre {
+  background: #282c34;
+  color: #abb2bf;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-family: monospace;
+}

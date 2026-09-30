@@ -9,7 +9,10 @@
 
 <div class="two-col question-management-grid">
   <section class="panel panel-large">
-    <h2>Add a Question</h2>
+    <div class="panel-head">
+      <h2>Add a Question</h2>
+      <button type="button" id="btn-open-best-practices" class="btn btn-subtle btn-sm">💡 Best Practices</button>
+    </div>
     
     <form method="post" action="{{ url_for('add_question') }}" class="stack-form" id="add-question-form">
       
@@ -53,12 +56,32 @@
         </div>
       </div>
 
-      <label>Question Prompt <span class="muted small">(type text or drag/paste images directly into the box)</span></label>
-      <div class="rich-editor rich-editor-lg" contenteditable="true" data-target="text-input" placeholder="Type question or drop images here..."></div>
+      <!-- Question Prompt Field + Formatting Toolbar -->
+      <div class="field-label-row">
+        <label>Question Prompt</label>
+        <div class="editor-toolbar" data-target="editor-prompt">
+          <button type="button" class="tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+          <button type="button" class="tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+          <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+          <button type="button" class="tb-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+          <button type="button" class="tb-btn" data-cmd="formatBlock" data-val="pre" title="Code Block">&lt;/&gt;</button>
+        </div>
+      </div>
+      <div id="editor-prompt" class="rich-editor rich-editor-lg" contenteditable="true" data-target="text-input" placeholder="Type question or drop images here..."></div>
       <input type="hidden" name="text" id="text-input" required>
 
-      <label>Answer / Worked Solution <span class="muted small">(drag/paste images or solution text)</span></label>
-      <div class="rich-editor rich-editor-lg" contenteditable="true" data-target="answer-input" placeholder="Type answer or drop solution diagram here..."></div>
+      <!-- Answer Field + Formatting Toolbar -->
+      <div class="field-label-row">
+        <label>Answer / Worked Solution</label>
+        <div class="editor-toolbar" data-target="editor-answer">
+          <button type="button" class="tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+          <button type="button" class="tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+          <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+          <button type="button" class="tb-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+          <button type="button" class="tb-btn" data-cmd="formatBlock" data-val="pre" title="Code Block">&lt;/&gt;</button>
+        </div>
+      </div>
+      <div id="editor-answer" class="rich-editor rich-editor-lg" contenteditable="true" data-target="answer-input" placeholder="Type answer or drop solution diagram here..."></div>
       <input type="hidden" name="answer" id="answer-input">
 
       <button type="submit" class="btn btn-primary btn-lg">Save Question</button>
@@ -102,6 +125,34 @@
       {% endfor %}
     </ul>
   </section>
+</div>
+
+<!-- Editable Best Practices Modal -->
+<div id="modal-best-practices" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>💡 Card Creation Best Practices</h3>
+      <button type="button" class="btn-icon" onclick="closeModal('modal-best-practices')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted small">Customize and save your note guidelines for constructing high-yield questions.</p>
+      
+      <div class="editor-toolbar" data-target="best-practices-editor">
+        <button type="button" class="tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button type="button" class="tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+        <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+        <button type="button" class="tb-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+      </div>
+
+      <div id="best-practices-editor" class="rich-editor" contenteditable="true" style="min-height: 180px; border: 1px solid var(--border-color, #d0d7de); padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;">
+        {{ best_practices | safe }}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" id="btn-save-best-practices" class="btn btn-primary btn-sm">Save Notes</button>
+      <button type="button" class="btn btn-subtle btn-sm" onclick="closeModal('modal-best-practices')">Close</button>
+    </div>
+  </div>
 </div>
 
 {% endblock %}
